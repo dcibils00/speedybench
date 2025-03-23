@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPU/GPU Benchmark</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1, h2 {
+            color: #007bff;
+        }
+        #runBenchmark {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #results {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        p {
+            margin: 8px 0;
+        }
+        .test-description{
+            font-style: italic;
+            color: grey;
+        }
+    </style>
+</head>
+<body>
+    <h1>CPU/GPU Benchmark</h1>
+    <button id="runBenchmark">Run Benchmark</button>
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('runBenchmark').addEventListener('click', runBenchmark);
+
+        async function runBenchmark() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            try {
+                displayMessage('Running test 1 of 4: Single Core (Complex Calculation)...');
+                const singleCoreScore = await benchmarkSingleCore();
+                displayMessage(`Single Core Score: ${singleCoreScore.toFixed(2)}`);
+
+                displayMessage('Running test 2 of 4: Multi Core (Parallel Processing)...');
+                const multiCoreScore = await benchmarkMultiCore();
+                displayMessage(`Multi Core Score: ${multiCoreScore.toFixed(2)}`);
+
+                displayMessage('Running test 3 of 4: GPU Render (Triangle Strip)...');
+                const gpuRenderScore = await benchmarkGpuRender();
+                displayMessage(`GPU Render Score: ${gpuRenderScore.toFixed(2)}`);
+
+                displayMessage('Running test 4 of 4: GPU Compute (Sine Array)...');
+                const gpuComputeScore = await benchmarkGpuCompute();
+                displayMessage(`GPU Compute Score: ${gpuComputeScore.toFixed(2)}`);
+
+                const finalScore = calculateFinalScore(singleCoreScore, multiCoreScore, gpuRenderScore, gpuComputeScore);
+                const systemInfo = await getSystemInfo();
+
+                resultsDiv.innerHTML += `
+                    <h2>Benchmark Results</h2>
+                    <p><strong>System Info:</strong> ${JSON.stringify(systemInfo)}</p>
+                    <p><strong>Single Core (Complex Calculation):</strong> ${singleCoreScore.toFixed(2)} <span class="test-description">Performs a complex mathematical calculation on a single thread.</span></p>
+                    <p><strong>Multi Core (Parallel Processing):</strong> ${multiCoreScore.toFixed(2)} <span class="test-description">Divides an intensive task and processes it across all available cores.</span></p>
+                    <p><strong>GPU Render (Triangle Strip):</strong> ${gpuRenderScore.toFixed(2)} <span class="test-description">Renders a simple triangle strip using WebGL.</span></p>
+                    <p><strong>GPU Compute (Sine Array):</strong> ${gpuComputeScore.toFixed(2)} <span class="test-description">Calculates sine values on a large JavaScript array.</span></p>
+                    <p><strong>Final Score:</strong> ${finalScore.toFixed(2)}</p>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML += `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        function displayMessage(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `<p>${message}</p>`;
+        }
+
+        async function benchmarkSingleCore() {
+            return new Promise(async (resolve) => {
+                const startTime = performance.now();
+                let result = 0;
+                let endTime = startTime;
+                while ((endTime - startTime) / 1000 < 5) { // Changed to 5 seconds
+                    for (let i = 0; i < 10000; i++) {
+                        result += Math.sqrt(i) * Math.log(i + 1) + Math.pow(i, 0.3);
+                    }
+                    endTime = performance.now();
+                }
+                const duration = (endTime - startTime) / 1000;
+                resolve(100 / duration);
+            });
+        }
+
+        async function benchmarkMultiCore() {
+            return new Promise(async (resolve) => {
+                const numCores = navigator.hardwareConcurrency || 4;
+                const promises = [];
+                const startTime = performance.now();
+                let endTime = startTime;
+                const taskDuration = 5; // Changed to 5 seconds
+                const taskPerCore = 10000000;
+
+                while ((endTime - startTime) / 1000 < taskDuration) {
+                    const innerPromises = [];
+                    for (let i = 0; i < numCores; i++) {
+                        innerPromises.push(new Promise(innerResolve => {
+                            let result = 0;
+                            for (let j = 0; j < taskPerCore / numCores; j++) {
+                                result += Math.sin(j) * Math.cos(j * 0.5) + Math.pow(j, 0.2);
+                            }
+                            innerResolve();
+                        }));
+                    }
+                    await Promise.all(innerPromises);
+                    endTime = performance.now();
+                }
+                const duration = (endTime - startTime) / 1000;
+                resolve(numCores * 100 / duration);
+            });
+        }
+
+        async function benchmarkGpuRender() {
+            return new Promise(async (resolve) => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl');
+                    if (!gl) {
+                        displayMessage('WebGL not supported. Skipping GPU Render test.');
+                        resolve(0);
+                        return;
+                    }
+
+                    const vertexShaderSource = `
+                        attribute vec4 a_position;
+                        void main() {
+                            gl_Position = a_position;
+                        }
+                    `;
+
+                    const fragmentShaderSource = `
+                        void main() {
+                            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                        }
+                    `;
+
+                    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                    gl.shaderSource(vertexShader, vertexShaderSource);
+                    gl.compileShader(vertexShader);
+                    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                        const error = gl.getShaderInfoLog(vertexShader);
+                        displayMessage('Vertex shader compilation error: ' + error);
+                        gl.deleteShader(vertexShader);
+                        gl.deleteShader(fragmentShader);
+                        gl.deleteProgram(program);
+                        resolve(0);
+                        return;
+                    }
+
+
+                    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                    gl.shaderSource(fragmentShader, fragmentShaderSource);
+                    gl.compileShader(fragmentShader);
+                    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                        const error = gl.getShaderInfoLog(fragmentShader);
+                        displayMessage('Fragment shader compilation error: ' + error);
+                        gl.deleteShader(vertexShader);
+                        gl.deleteShader(fragmentShader);
+                        gl.deleteProgram(program);
+                        resolve(0);
+                        return;
+                    }
+
+                    const program = gl.createProgram();
+                    gl.attachShader(program, vertexShader);
+                    gl.attachShader(program, fragmentShader);
+                    gl.linkProgram(program);
+                    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                        const error = gl.getProgramInfoLog(program);
+                        displayMessage('Program linking error: ' + error);
+                        gl.deleteShader(vertexShader);
+                        gl.deleteShader(fragmentShader);
+                        gl.deleteProgram(program);
+                        resolve(0);
+                        return;
+                    }
+                    gl.useProgram(program);
+
+                    const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+                    if (positionAttributeLocation === -1) {
+                        displayMessage('Failed to get attribute location: a_position');
+                        gl.deleteShader(vertexShader);
+                        gl.deleteShader(fragmentShader);
+                        gl.deleteProgram(program);
+                        resolve(0);
+                        return;
+                    }
+                    const positionBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+                    const positions = [-1, -1, 1, -1, -1, 1, 1, 1];
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+                    const startTime = performance.now();
+                    let endTime = startTime;
+                    let frameCount = 0;
+
+                    while ((endTime - startTime) / 1000 < 5) { // Changed to 5 seconds
+                        for (let i = 0; i < 100; i++) {
+                            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                        }
+                        frameCount += 100;
+                        endTime = performance.now();
+                    }
+                    const duration = (endTime - startTime) / 1000;
+                    gl.deleteShader(vertexShader);
+                    gl.deleteShader(fragmentShader);
+                    gl.deleteProgram(program);
+                    resolve(frameCount / duration);
+                } catch (error) {
+                    displayMessage('Error in GPU Render test: ' + error.message);
+                    resolve(0);
+                }
+            });
+        }
+
+        async function benchmarkGpuCompute() {
+            return new Promise(async (resolve) => {
+                const arraySize = 1000000;
+                const array = new Float32Array(arraySize);
+                for (let i = 0; i < arraySize; i++) {
+                    array[i] = Math.random();
+                }
+
+                const startTime = performance.now();
+                let endTime = startTime;
+
+                while ((endTime - startTime) / 1000 < 5) { // Changed to 5 seconds
+                    for (let i = 0; i < arraySize; i++) {
+                        array[i] = Math.sin(array[i]);
+                    }
+                    endTime = performance.now();
+                }
+                const duration = (endTime - startTime) / 1000;
+                resolve(100 / duration);
+            });
+        }
+
+        function calculateFinalScore(singleCore, multiCore, gpuRender, gpuCompute) {
+            return (singleCore + multiCore + gpuRender + gpuCompute) / 4;
+        }
+
+        async function getSystemInfo() {
+            return new Promise(resolve => {
+                resolve({
+                    cores: navigator.hardwareConcurrency,
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    memory: navigator.deviceMemory,
+                });
+            });
+        }
+    </script>
+</body>
+</html>
