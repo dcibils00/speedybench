@@ -73,10 +73,10 @@
                 resultsDiv.innerHTML += `
                     <h2>Benchmark Results</h2>
                     <p><strong>System Info:</strong> ${JSON.stringify(systemInfo)}</p>
-                    <p><strong>Single Core (Complex Calculation):</strong> ${singleCoreScore.toFixed(2)} <span class="test-description">Performs a complex mathematical calculation on a single thread.</span></p>
-                    <p><strong>Multi Core (Parallel Processing):</strong> ${multiCoreScore.toFixed(2)} <span class="test-description">Divides an intensive task and processes it across all available cores.</span></p>
-                    <p><strong>GPU Render (Triangle Strip):</strong> ${gpuRenderScore.toFixed(2)} <span class="test-description">Renders a simple triangle strip using WebGL.</span></p>
-                    <p><strong>GPU Compute (Sine Array):</strong> ${gpuComputeScore.toFixed(2)} <span class="test-description">Calculates sine values on a large JavaScript array.</span></p>
+                    <p><strong>Single Core (Complex Calculation):</strong> ${singleCoreScore.toFixed(2)} <span class="test-description">Test Name: Single Core, Loops: 1000. This test measures the single-threaded performance of the CPU by performing a series of complex mathematical operations (square root, logarithm, and exponentiation).  It is designed to assess how quickly the CPU can execute a complex, sequential calculation.</span></p>
+                    <p><strong>Multi Core (Parallel Processing):</strong> ${multiCoreScore.toFixed(2)} <span class="test-description">Test Name: Multi Core, Loops: 1000 per core. This test evaluates the CPU's multi-core processing capabilities. It divides a series of mathematical operations (sine, cosine, and exponentiation) and distributes the workload across all available CPU cores. This assesses the efficiency of parallel processing.</span></p>
+                    <p><strong>GPU Render (Triangle Strip):</strong> ${gpuRenderScore.toFixed(2)} <span class="test-description">Test Name: GPU Render, Loops: 1000.  This test measures the GPU's rendering performance using WebGL. It renders a simple triangle strip, which is a sequence of connected triangles.  This test assesses how quickly the GPU can process and render basic graphics.</span></p>
+                    <p><strong>GPU Compute (Sine Array):</strong> ${gpuComputeScore.toFixed(2)} <span class="test-description">Test Name: GPU Compute, Loops: 1000. This test measures the GPU's computational performance. It calculates the sine of each element in a large array.  This evaluates the GPU's ability to perform mathematical operations on a large dataset.</span></p>
                     <p><strong>Final Score:</strong> ${finalScore.toFixed(2)}</p>
                 `;
             } catch (error) {
@@ -93,15 +93,12 @@
             return new Promise(async (resolve) => {
                 const startTime = performance.now();
                 let result = 0;
-                let endTime = startTime;
-                while ((endTime - startTime) / 1000 < 5) { // Changed to 5 seconds
-                    for (let i = 0; i < 10000; i++) {
-                        result += Math.sqrt(i) * Math.log(i + 1) + Math.pow(i, 0.3);
-                    }
-                    endTime = performance.now();
+                for (let i = 0; i < 1000; i++) { // Changed to 1000
+                    result += Math.sqrt(i) * Math.log(i + 1) + Math.pow(i, 0.3);
                 }
-                const duration = (endTime - startTime) / 1000;
-                resolve(100 / duration);
+                const endTime = performance.now();
+                const duration = (endTime - startTime); // in milliseconds
+                resolve(10000 / duration); // Higher score for lower time
             });
         }
 
@@ -110,26 +107,21 @@
                 const numCores = navigator.hardwareConcurrency || 4;
                 const promises = [];
                 const startTime = performance.now();
-                let endTime = startTime;
-                const taskDuration = 5; // Changed to 5 seconds
-                const taskPerCore = 10000000;
+                const taskPerCore = 1000000; // Adjusted task load
 
-                while ((endTime - startTime) / 1000 < taskDuration) {
-                    const innerPromises = [];
-                    for (let i = 0; i < numCores; i++) {
-                        innerPromises.push(new Promise(innerResolve => {
-                            let result = 0;
-                            for (let j = 0; j < taskPerCore / numCores; j++) {
-                                result += Math.sin(j) * Math.cos(j * 0.5) + Math.pow(j, 0.2);
-                            }
-                            innerResolve();
-                        }));
-                    }
-                    await Promise.all(innerPromises);
-                    endTime = performance.now();
+                for (let i = 0; i < numCores; i++) {
+                    promises.push(new Promise(innerResolve => {
+                        let result = 0;
+                        for (let j = 0; j < 1000; j++) { // Changed to 1000
+                            result += Math.sin(j) * Math.cos(j * 0.5) + Math.pow(j, 0.2);
+                        }
+                        innerResolve();
+                    }));
                 }
-                const duration = (endTime - startTime) / 1000;
-                resolve(numCores * 100 / duration);
+                await Promise.all(promises);
+                const endTime = performance.now();
+                const duration = (endTime - startTime); // in milliseconds
+                resolve(numCores * 10000 / duration); // Higher score for lower time
             });
         }
 
@@ -218,21 +210,17 @@
                     gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
                     const startTime = performance.now();
-                    let endTime = startTime;
                     let frameCount = 0;
-
-                    while ((endTime - startTime) / 1000 < 5) { // Changed to 5 seconds
-                        for (let i = 0; i < 100; i++) {
-                            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-                        }
-                        frameCount += 100;
-                        endTime = performance.now();
+                    for (let i = 0; i < 1000; i++) { // Changed to 1000
+                        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                        frameCount++;
                     }
-                    const duration = (endTime - startTime) / 1000;
+                    const endTime = performance.now();
+                    const duration = (endTime - startTime); // in milliseconds
                     gl.deleteShader(vertexShader);
                     gl.deleteShader(fragmentShader);
                     gl.deleteProgram(program);
-                    resolve(frameCount / duration);
+                    resolve(frameCount * 1000 / duration); // Score based on frames per millisecond
                 } catch (error) {
                     displayMessage('Error in GPU Render test: ' + error.message);
                     resolve(0);
@@ -249,16 +237,14 @@
                 }
 
                 const startTime = performance.now();
-                let endTime = startTime;
-
-                while ((endTime - startTime) / 1000 < 5) { // Changed to 5 seconds
-                    for (let i = 0; i < arraySize; i++) {
-                        array[i] = Math.sin(array[i]);
+                for (let i = 0; i < 1000; i++) { // Changed to 1000
+                    for (let j = 0; j < arraySize; j++) {
+                        array[j] = Math.sin(array[j]);
                     }
-                    endTime = performance.now();
                 }
-                const duration = (endTime - startTime) / 1000;
-                resolve(100 / duration);
+                const endTime = performance.now();
+                const duration = (endTime - startTime); // in milliseconds
+                resolve(10000 / duration);
             });
         }
 
